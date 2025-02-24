@@ -6,9 +6,16 @@ using ModCustomer = Northwind.Orders.WebApi.Models.Customer;
 using ModEmployee = Northwind.Orders.WebApi.Models.Employee;
 using ModShipper = Northwind.Orders.WebApi.Models.Shipper;
 using ModShippingAddress = Northwind.Orders.WebApi.Models.ShippingAddress;
-using RepoOrderDeteils = Northwind.Services.Repositories.OrderDetail;
+using RepoOrderDetails = Northwind.Services.Repositories.OrderDetail;
 using RepoProduct = Northwind.Services.Repositories.Product;
+using RepoOrder = Northwind.Services.Repositories.Order;
+using RepoCustomer = Northwind.Services.Repositories.Customer;
+using RepoEmployee = Northwind.Services.Repositories.Employee;
+using RepoShipper = Northwind.Services.Repositories.Shipper;
+using RepoShippingAddress = Northwind.Services.Repositories.ShippingAddress;
+using RepoCustomerCode = Northwind.Services.Repositories.CustomerCode;
 using Northwind.Services.EntityFramework.Entities;
+using Northwind.Services.EntityFramework.Repositories;
 
 namespace Northwind.Orders.WebApi.Controllers;
 
@@ -97,9 +104,46 @@ public sealed class OrdersController : ControllerBase
         throw new NotImplementedException();
     }
 
-    public Task<ActionResult<AddOrder>> AddOrderAsync(BriefOrder order)
+    public async Task<ActionResult<AddOrder>> AddOrderAsync(BriefOrder order)
     {
-        throw new NotImplementedException();
+        try
+        {
+            var customercode = new RepoCustomerCode(order.CustomerId);
+            var repoOrder = new RepoOrder(order.Id)
+            {
+                Customer = new RepoCustomer(customercode),
+                Employee = new RepoEmployee(order.EmployeeId),
+                OrderDate = order.OrderDate,
+                RequiredDate = order.RequiredDate,
+                ShippedDate = order.ShippedDate,
+                Shipper = new RepoShipper(order.ShipperId),
+                Freight = order.Freight,
+                ShipName = order.ShipName,
+                ShippingAddress = new RepoShippingAddress(order.ShipAddress, order.ShipCity, order.ShipRegion, order.ShipPostalCode, order.ShipCountry),
+            };
+
+            var orderDetailsList = order.OrderDetails.Select(od => new RepoOrderDetails(repoOrder)
+            {
+                Product = new RepoProduct(od.ProductId),
+                UnitPrice = od.UnitPrice,
+                Quantity = od.Quantity,
+                Discount = od.Discount,
+            }).ToList();
+
+            repoOrder.OrderDetails = orderDetailsList;
+
+            var resultId = await _orderRepository.AddOrderAsync(repoOrder);
+
+            _logger.LogInformation("Order added successfully with ID {OrderId}", resultId);
+            var orderId = new AddOrder() {OrderId = resultId };
+
+            return Ok(orderId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error adding order");
+            return new StatusCodeResult(500);
+        }
     }
 
     public async Task<ActionResult> RemoveOrderAsync(long orderId)

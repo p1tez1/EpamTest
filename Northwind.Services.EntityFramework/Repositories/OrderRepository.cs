@@ -36,7 +36,7 @@ namespace Northwind.Services.EntityFramework.Repositories
 
             if (order == null)
             {
-                throw new OrderNotFoundException();
+                throw new OrderNotFoundException($"Order with Id {orderId} not found.");
             }
 
             var customercode = new CustomerCode(order.CustomerId);
@@ -98,19 +98,18 @@ namespace Northwind.Services.EntityFramework.Repositories
         public async Task RemoveOrderAsync(long orderId)
         {
             var order = await _context.Orders
+                .Include(o => o.OrderDetails)
                 .FirstOrDefaultAsync(od => od.Id == orderId);
 
             if (order == null)
             {
-                throw new NotImplementedException();
+                throw new OrderNotFoundException($"Order with ID {orderId} not found.");
             }
 
-            var orderDetails = await _context.OrderDetails
-                .Where(od => od.OrderId == orderId)
-                .ToListAsync();
+            _context.OrderDetails.RemoveRange(order.OrderDetails);
 
-            _context.OrderDetails.RemoveRange(orderDetails);
             _context.Orders.Remove(order);
+
             await _context.SaveChangesAsync();
         }
 
