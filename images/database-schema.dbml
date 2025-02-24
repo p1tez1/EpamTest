@@ -1,0 +1,109 @@
+// This file is in the DBML format: https://dbml.dbdiagram.io
+// Visual editor: https://dbdiagram.io
+
+Table Orders {
+  OrderID INTEGER [primary key]
+  CustomerID TEXT
+  EmployeeID INTEGER
+  OrderDate DATETIME
+  RequiredDate DATETIME
+  ShippedDate DATETIME
+  ShipVia INTEGER
+  Freight REAL
+  ShipName TEXT
+  ShipAddress TEXT
+  ShipCity TEXT
+  ShipRegion TEXT
+  ShipPostalCode TEXT
+  ShipCountry TEXT
+}
+
+Table OrderDetails {
+  OrderID INTEGER [primary key]
+  ProductID INTEGER [primary key]
+  UnitPrice REAL
+  Quantity INTEGER
+  Discount REAL
+}
+
+Table Products {
+  ProductID INTEGER [PRIMARY KEY]
+  ProductName TEXT
+  SupplierID INTEGER
+  CategoryID INTEGER
+  QuantityPerUnit TEXT
+  UnitPrice REAL
+  UnitsInStock INTEGER
+  UnitsOnOrder INTEGER
+  ReorderLevel INTEGER
+  Discontinued INTEGER
+}
+
+Table Employees {
+  EmployeeID INTEGER [PRIMARY KEY]
+  LastName TEXT
+  FirstName TEXT
+  Title TEXT
+  TitleOfCourtesy TEXT
+  BirthDate DATETIME
+  HireDate DATETIME
+  Address TEXT
+  City TEXT
+  Region TEXT
+  PostalCode TEXT
+  Country TEXT
+  HomePhone TEXT
+  Extension TEXT
+  Notes TEXT
+  ReportsTo INTEGER
+  PhotoPath TEXT
+}
+
+Table Customers {
+  CustomerID TEXT [PRIMARY KEY]
+  CompanyName TEXT
+  ContactName TEXT
+  ContactTitle TEXT
+  Address TEXT
+  City TEXT
+  Region TEXT
+  PostalCode TEXT
+  Country TEXT
+  Phone TEXT
+  Fax TEXT
+}
+
+Table Shippers {
+  ShipperID INTEGER [PRIMARY KEY]
+  CompanyName TEXT
+  Phone TEXT
+}
+
+Table Suppliers {
+  SupplierID INTEGER [PRIMARY KEY]
+  CompanyName TEXT
+  ContactName TEXT
+  ContactTitle TEXT
+  Address TEXT
+  City TEXT
+  Region TEXT
+  PostalCode TEXT
+  Country TEXT
+  Phone TEXT
+  Fax TEXT
+  HomePage TEXT
+}
+
+Table Categories {
+  CategoryID INTEGER [PRIMARY KEY]
+  CategoryName TEXT
+  Description TEXT
+}
+
+Ref: OrderDetails.OrderID > Orders.OrderID
+Ref: OrderDetails.ProductID > Products.ProductID
+Ref: Orders.EmployeeID > Employees.EmployeeID
+Ref: Orders.CustomerID > Customers.CustomerID
+Ref: Orders.ShipVia > Shippers.ShipperID
+Ref: Products.SupplierID > Suppliers.SupplierID
+Ref: Products.CategoryID > Categories.CategoryID
