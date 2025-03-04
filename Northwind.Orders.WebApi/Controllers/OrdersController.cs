@@ -99,9 +99,10 @@ public sealed class OrdersController : ControllerBase
             return StatusCode(500);
         }
     }
+
     public Task<ActionResult<IEnumerable<BriefOrder>>> GetOrdersAsync(int? skip, int? count)
     {
-        throw new NotImplementedException();
+        throw new Exception();
     }
 
     public async Task<ActionResult<AddOrder>> AddOrderAsync(BriefOrder order)
@@ -135,7 +136,7 @@ public sealed class OrdersController : ControllerBase
             var resultId = await _orderRepository.AddOrderAsync(repoOrder);
 
             _logger.LogInformation("Order added successfully with ID {OrderId}", resultId);
-            var orderId = new AddOrder() {OrderId = resultId };
+            var orderId = new AddOrder() { OrderId = resultId };
 
             return Ok(orderId);
         }
@@ -167,8 +168,49 @@ public sealed class OrdersController : ControllerBase
         }
     }
 
-    public Task<ActionResult> UpdateOrderAsync(long orderId, BriefOrder order)
+    public async Task<ActionResult> UpdateOrderAsync(long orderId, BriefOrder order)
     {
-        throw new NotImplementedException();
+        try
+        {
+            var customercode = new RepoCustomerCode(order.CustomerId);
+            var repoOrder = new RepoOrder(orderId)
+            {
+                Customer = new RepoCustomer(customercode),
+                Employee = new RepoEmployee(order.EmployeeId),
+                OrderDate = order.OrderDate,
+                RequiredDate = order.RequiredDate,
+                ShippedDate = order.ShippedDate,
+                Shipper = new RepoShipper(order.ShipperId),
+                Freight = order.Freight,
+                ShipName = order.ShipName,
+                ShippingAddress = new RepoShippingAddress(order.ShipAddress, order.ShipCity, order.ShipRegion, order.ShipPostalCode, order.ShipCountry),
+            };
+
+            var orderDetailsList = order.OrderDetails.Select(od => new RepoOrderDetails(repoOrder)
+            {
+                Product = new RepoProduct(od.ProductId),
+                UnitPrice = od.UnitPrice,
+                Quantity = od.Quantity,
+                Discount = od.Discount,
+            }).ToList();
+
+            repoOrder.OrderDetails = orderDetailsList;
+
+            await _orderRepository.UpdateOrderAsync(repoOrder);
+
+            return NoContent();
+        }
+        catch (OrderNotFoundException)
+        {
+            _logger.LogWarning("Order with ID {OrderId} not found.", orderId);
+
+            return NotFound();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update order with ID {OrderId}", orderId);
+
+            return StatusCode(500);
+        }
     }
 }

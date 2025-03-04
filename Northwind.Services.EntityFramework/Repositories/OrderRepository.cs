@@ -36,7 +36,7 @@ namespace Northwind.Services.EntityFramework.Repositories
 
             if (order == null)
             {
-                throw new OrderNotFoundException($"Order with Id {orderId} not found.");
+                throw new OrderNotFoundException();
             }
 
             var customercode = new CustomerCode(order.CustomerId);
@@ -85,14 +85,81 @@ namespace Northwind.Services.EntityFramework.Repositories
             return repoOrder;
         }
 
-        public Task<IList<RepositoryOrder>> GetOrdersAsync(int skip, int count)
+        public async Task<IList<RepositoryOrder>> GetOrdersAsync(int skip, int count)
         {
-            throw new NotImplementedException();
+            throw new Exception();
         }
 
-        public Task<long> AddOrderAsync(RepositoryOrder order)
+        public async Task<long> AddOrderAsync(RepositoryOrder order)
         {
-            throw new NotImplementedException();
+            if (order == null)
+            {
+                throw new ArgumentNullException(nameof(order));
+            }
+
+            if (order.OrderDetails == null || !order.OrderDetails.Any())
+            {
+                throw new RepositoryException("Order must contain at least one order detail");
+            }
+
+            var customerId = order.Customer.Code;
+            var entityOrder = new Entities.Order()
+            {
+                Id = order.Id,
+                CustomerId = customerId.Code,
+                ShipperId = order.Shipper.Id,
+                EmployeeId = order.Employee.Id,
+                OrderDate = order.OrderDate,
+                RequiredDate = order.OrderDate,
+                ShippedDate = order.OrderDate,
+                Freight = order.Freight,
+                ShipName = order.ShipName,
+                ShipAddress = order.ShippingAddress.Address,
+                ShipCity = order.ShippingAddress.City,
+                ShipRegion = order.ShippingAddress.Region,
+                ShipPostalCode = order.ShippingAddress.PostalCode,
+                ShipCountry = order.ShippingAddress.Country,
+                Employee = new Entities.Employee()
+                {
+                    Id = order.Employee.Id,
+                    LastName = order.Employee.LastName,
+                    FirstName = order.Employee.FirstName,
+                    Country = order.Employee.Country,
+                },
+                Shipper = new Entities.Shipper()
+                {
+                    Id = order.Shipper.Id,
+                    CompanyName = order.Shipper.CompanyName,
+                },
+                Customer = new Entities.Customer()
+                {
+                    Id = customerId.Code,
+                    CompanyName = order.Customer.CompanyName,
+                },
+            };
+
+            var orderDetailList = order.OrderDetails.Select(rod => new Entities.OrderDetail()
+            {
+                OrderId = rod.Order.Id,
+                ProductId = rod.Product.Id,
+                UnitPrice = rod.UnitPrice,
+                Quantity = rod.Quantity,
+                Discount = rod.Discount,
+            }).ToList();
+
+            entityOrder.OrderDetails = orderDetailList;
+
+            try
+            {
+                _context.Add(entityOrder);
+                await _context.SaveChangesAsync();
+
+                return entityOrder.Id;
+            }
+            catch (Exception ex)
+            {
+                throw new RepositoryException($"Failed to add order: {ex.Message}", ex);
+            }
         }
 
         public async Task RemoveOrderAsync(long orderId)
@@ -113,9 +180,55 @@ namespace Northwind.Services.EntityFramework.Repositories
             await _context.SaveChangesAsync();
         }
 
-        public Task UpdateOrderAsync(RepositoryOrder order)
+        public async Task UpdateOrderAsync(RepositoryOrder order)
         {
-            throw new NotImplementedException();
+            var editingOrder = await _context.Orders
+                .Include(o => o.Customer)
+                .Include(o => o.Employee)
+                .Include(o => o.Shipper)
+                .Include(o => o.OrderDetails)
+                    .ThenInclude(od => od.Product)
+                        .ThenInclude(p => p.Category)
+                .Include(o => o.OrderDetails)
+                    .ThenInclude(od => od.Product)
+                        .ThenInclude(p => p.Supplier)
+                .FirstOrDefaultAsync(o => o.Id == order.Id);
+
+            if (editingOrder == null)
+            {
+                throw new OrderNotFoundException();
+            }
+
+            editingOrder.CustomerId = order.Customer.Code.Code;
+            editingOrder.ShipperId = order.Shipper.Id;
+            editingOrder.EmployeeId = order.Employee.Id;
+            editingOrder.OrderDate = order.OrderDate;
+            editingOrder.RequiredDate = order.RequiredDate;
+            editingOrder.ShippedDate = order.ShippedDate;
+            editingOrder.Freight = order.Freight;
+            editingOrder.ShipName = order.ShipName;
+            editingOrder.ShipAddress = order.ShippingAddress.Address;
+            editingOrder.ShipCity = order.ShippingAddress.City;
+            editingOrder.ShipRegion = order.ShippingAddress.Region;
+            editingOrder.ShipPostalCode = order.ShippingAddress.PostalCode;
+            editingOrder.ShipCountry = order.ShippingAddress.Country;
+            editingOrder.Employee.Id = order.Employee.Id;
+            editingOrder.Employee.FirstName = order.Employee.FirstName;
+            editingOrder.Employee.LastName = order.Employee.LastName;
+            editingOrder.Employee.Country = order.Employee.Country;
+            editingOrder.Shipper.Id = order.Shipper.Id;
+            editingOrder.Shipper.CompanyName = order.Shipper.CompanyName;
+            editingOrder.Customer.Id = order.Customer.Code.Code;
+            editingOrder.Customer.CompanyName = order.Customer.CompanyName;
+
+            var orderDetailList = order.OrderDetails.Select(rod => new Entities.OrderDetail()
+            {
+                OrderId = rod.Order.Id,
+                ProductId = rod.Product.Id,
+                UnitPrice = rod.UnitPrice,
+                Quantity = rod.Quantity,
+                Discount = rod.Discount,
+            }).ToList();
         }
     }
 }
